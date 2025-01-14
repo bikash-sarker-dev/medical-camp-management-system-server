@@ -27,6 +27,7 @@ async function run() {
 
     // collection create
     const campCollection = client.db("medicalCamp").collection("camps");
+    const feedbackCollection = client.db("medicalCamp").collection("feedbacks");
 
     // camps relate
     app.get("/camps", async (req, res) => {
@@ -35,6 +36,12 @@ async function run() {
         .sort({ ParticipantCount: -1 })
         .limit(6)
         .toArray();
+      res.send(result);
+    });
+
+    // feedback relate work
+    app.get("/feedbacks", async (req, res) => {
+      const result = await feedbackCollection.find().toArray();
       res.send(result);
     });
 
