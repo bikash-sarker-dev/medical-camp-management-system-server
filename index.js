@@ -46,14 +46,25 @@ async function run() {
 
     app.get("/search", async (req, res) => {
       const search = req.query.search;
-
-      const query = {
+      const sorting = req.query.sort;
+      let query = {
         CampName: {
           $regex: search,
           $options: "i",
         },
       };
-      const result = await campCollection.find(query).toArray();
+
+      let options;
+
+      if (sorting === "m-des") {
+        options = { ParticipantCount: -1 };
+      } else if (sorting === "camp-free-des") {
+        options = { CampFees: -1 };
+      } else if (sorting === "camp-free-acs") {
+        options = { CampFees: 1 };
+      }
+
+      const result = await campCollection.find(query).sort(options).toArray();
       res.send(result);
     });
 
