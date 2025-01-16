@@ -28,6 +28,7 @@ async function run() {
     // collection create
     const campCollection = client.db("medicalCamp").collection("camps");
     const feedbackCollection = client.db("medicalCamp").collection("feedbacks");
+    const joinCampCollection = client.db("medicalCamp").collection("joinCamps");
 
     // camps relate
     app.get("/camps", async (req, res) => {
@@ -55,7 +56,6 @@ async function run() {
       };
 
       let options;
-
       if (sorting === "m-des") {
         options = { ParticipantCount: -1 };
       } else if (sorting === "camp-free-des") {
@@ -72,13 +72,32 @@ async function run() {
       const id = req.params.id;
       const query = { _id: id } || { _id: new ObjectId(id) };
       const result = await campCollection.findOne(query);
-      console.log(result);
       res.send(result);
     });
 
     // feedback relate work
     app.get("/feedbacks", async (req, res) => {
       const result = await feedbackCollection.find().toArray();
+      res.send(result);
+    });
+
+    // join Camp relate working
+    app.post("/join-camp", async (req, res) => {
+      const joinData = req.body;
+      const campId = req.body.campId;
+      const result = await joinCampCollection.insertOne(joinData);
+
+      // increment participantCount
+      let filter = { _id: campId };
+      let upDateParticipantCount = {
+        $inc: {
+          ParticipantCount: 1,
+        },
+      };
+      const upCamp = await campCollection.updateOne(
+        filter,
+        upDateParticipantCount
+      );
       res.send(result);
     });
 
