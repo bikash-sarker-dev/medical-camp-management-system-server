@@ -39,6 +39,11 @@ async function run() {
     });
 
     // camps relate
+    app.post("/camps", async (req, res) => {
+      const camp = req.body;
+      const result = await campCollection.insertOne(camp);
+      res.send(result);
+    });
     app.get("/camps", async (req, res) => {
       const result = await campCollection.find().toArray();
       res.send(result);
@@ -78,7 +83,7 @@ async function run() {
 
     app.get("/details/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id } || { _id: new ObjectId(id) };
+      const query = { _id: new ObjectId(id) };
       const result = await campCollection.findOne(query);
       res.send(result);
     });
@@ -96,7 +101,7 @@ async function run() {
       const result = await joinCampCollection.insertOne(joinData);
 
       // increment participantCount
-      let filter = { _id: campId };
+      let filter = { _id: new ObjectId(campId) };
       let upDateParticipantCount = {
         $inc: {
           ParticipantCount: 1,
