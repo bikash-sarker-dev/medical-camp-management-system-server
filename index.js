@@ -29,6 +29,14 @@ async function run() {
     const campCollection = client.db("medicalCamp").collection("camps");
     const feedbackCollection = client.db("medicalCamp").collection("feedbacks");
     const joinCampCollection = client.db("medicalCamp").collection("joinCamps");
+    const userCollection = client.db("medicalCamp").collection("users");
+
+    // user relate working
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user);
+      res.send(user);
+    });
 
     // camps relate
     app.get("/camps", async (req, res) => {
