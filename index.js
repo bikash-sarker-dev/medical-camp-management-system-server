@@ -32,10 +32,34 @@ async function run() {
     const userCollection = client.db("medicalCamp").collection("users");
 
     // user relate working
-    app.post("/user", async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
+      const query = { email: user.email };
+      const exitingUser = await userCollection.findOne(query);
+      if (exitingUser) {
+        return res.send({ message: "user already exited", insertedId: null });
+      }
       const result = await userCollection.insertOne(user);
       res.send(user);
+    });
+
+    app.get("/users", async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
+    // organize relate work
+    app.patch("/users/organizer/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const updateRole = {
+        $set: {
+          role: "organizer",
+        },
+      };
+      const result = await userCollection.updateOne(query, updateRole);
+      res.send(result);
     });
 
     // camps relate
