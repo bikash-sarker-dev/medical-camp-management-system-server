@@ -71,8 +71,14 @@ async function run() {
       if (participant) {
         organizer = participant?.role === "organizer";
       }
-
       res.send({ organizer });
+    });
+
+    app.delete("/users/participant/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
     });
 
     // camps relate
@@ -148,6 +154,11 @@ async function run() {
         filter,
         upDateParticipantCount
       );
+      res.send(result);
+    });
+
+    app.get("/join-camp", async (req, res) => {
+      const result = await joinCampCollection.find().toArray();
       res.send(result);
     });
 
