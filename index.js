@@ -87,6 +87,7 @@ async function run() {
       const result = await campCollection.insertOne(camp);
       res.send(result);
     });
+
     app.get("/camps", async (req, res) => {
       const result = await campCollection.find().toArray();
       res.send(result);
@@ -98,6 +99,33 @@ async function run() {
         .sort({ ParticipantCount: -1 })
         .limit(6)
         .toArray();
+      res.send(result);
+    });
+    app.delete("/camps/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await campCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.put("/update-camp/:id", async (req, res) => {
+      const updateId = req.params.id;
+      const updateData = req.body;
+      const query = { _id: new ObjectId(updateId) };
+      const option = { upsert: true };
+      const updateCamp = {
+        $set: {
+          CampName: updateData.CampName,
+          Image: updateData.Image,
+          CampFees: updateData.CampFees,
+          DateAndTime: updateData.DateAndTime,
+          Location: updateData.Location,
+          HealthcareProfessional: updateData.HealthcareProfessional,
+          ParticipantCount: updateData.ParticipantCount,
+          Description: updateData.Description,
+        },
+      };
+      const result = await campCollection.updateOne(query, updateCamp, option);
       res.send(result);
     });
 
