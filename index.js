@@ -62,6 +62,19 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/users/organizer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+
+      const participant = await userCollection.findOne(query);
+      let organizer = false;
+      if (participant) {
+        organizer = participant?.role === "organizer";
+      }
+
+      res.send({ organizer });
+    });
+
     // camps relate
     app.post("/camps", async (req, res) => {
       const camp = req.body;
