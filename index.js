@@ -185,8 +185,27 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/join-camp", async (req, res) => {
+    app.get("/join-camps", async (req, res) => {
       const result = await joinCampCollection.find().toArray();
+      res.send(result);
+    });
+    app.delete("/delete-join-camps/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await joinCampCollection.deleteOne(query);
+      res.send(result);
+    });
+    app.patch("/update-join-camps/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const query = { _id: new ObjectId(id) };
+      const updateStatus = {
+        $set: {
+          PaymentStatus: "paid",
+          Confirmation: "confirmed",
+        },
+      };
+      const result = await joinCampCollection.updateOne(query, updateStatus);
       res.send(result);
     });
 
