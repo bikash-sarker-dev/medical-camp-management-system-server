@@ -30,6 +30,7 @@ async function run() {
     const feedbackCollection = client.db("medicalCamp").collection("feedbacks");
     const joinCampCollection = client.db("medicalCamp").collection("joinCamps");
     const userCollection = client.db("medicalCamp").collection("users");
+    const profileCollection = client.db("medicalCamp").collection("profiles");
 
     // user relate working
     app.post("/users", async (req, res) => {
@@ -206,6 +207,46 @@ async function run() {
         },
       };
       const result = await joinCampCollection.updateOne(query, updateStatus);
+      res.send(result);
+    });
+
+    // profile relate working
+    app.post("/profile", async (req, res) => {
+      const profile = req.body;
+      const result = await profileCollection.insertOne(profile);
+      res.send(result);
+    });
+
+    app.get("/profile/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await profileCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.patch("/profile/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+
+      const query = { email: email };
+      const updateProfileInfo = {
+        $set: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          eduction: data.eduction,
+          address: data.address,
+          country: data.country,
+          state: data.state,
+          website: data.website,
+          bio: data.bio,
+          photo: data.photo,
+        },
+      };
+      const result = await profileCollection.updateOne(
+        query,
+        updateProfileInfo
+      );
       res.send(result);
     });
 
