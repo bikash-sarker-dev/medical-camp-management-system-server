@@ -210,6 +210,14 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/registered-join/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { participantEmail: email };
+
+      const result = await joinCampCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // profile relate working
     app.post("/profile", async (req, res) => {
       const profile = req.body;
