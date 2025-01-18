@@ -168,6 +168,12 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/feedbacks", async (req, res) => {
+      const feedbackData = req.body;
+      const result = await feedbackCollection.insertOne(feedbackData);
+      res.send(result);
+    });
+
     // join Camp relate working
     app.post("/join-camp", async (req, res) => {
       const joinData = req.body;
