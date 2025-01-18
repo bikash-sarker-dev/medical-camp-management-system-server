@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
+const stripe = require("stripe")(process.env.STRIPE_PAYMENT_KEY);
 
 const port = process.env.PORT;
 
@@ -31,6 +32,7 @@ async function run() {
     const joinCampCollection = client.db("medicalCamp").collection("joinCamps");
     const userCollection = client.db("medicalCamp").collection("users");
     const profileCollection = client.db("medicalCamp").collection("profiles");
+    const paymentCollection = client.db("medicalCamp").collection("payments");
 
     // user relate working
     app.post("/users", async (req, res) => {
@@ -190,6 +192,12 @@ async function run() {
       const result = await joinCampCollection.find().toArray();
       res.send(result);
     });
+    app.get("/join-camps/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await joinCampCollection.findOne(query);
+      res.send(result);
+    });
     app.delete("/delete-join-camps/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -256,6 +264,40 @@ async function run() {
         updateProfileInfo
       );
       res.send(result);
+    });
+
+    // payment relate working
+    app.post("/checkout-intent", async (req, res) => {
+      const { campFees } = req.body;
+      const feesAmount = parseInt(campFees * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: feesAmount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({ clientSecret: paymentIntent.client_secret });
+    });
+
+    app.post("/payment", async (req, res) => {
+      const paymentData = req.body;
+      const result = await paymentCollection.insertOne(paymentData);
+
+      const joinId = paymentData.joinId;
+      const query = { _id: new ObjectId(joinId) };
+
+      const updatePaymentStatus = {
+        $set: {
+          PaymentStatus: "paid",
+          Confirmation: "confirmed",
+        },
+      };
+      const joinCampPay = await joinCampCollection.updateOne(
+        query,
+        updatePaymentStatus
+      );
+      res.send({ paymentCreate: result, paymentStatusUpdate: joinCampPay });
     });
 
     // Send a ping to confirm a successful connection
