@@ -231,6 +231,22 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/camp-search", async (req, res) => {
+      const search = req.query.search;
+      console.log(search);
+
+      let query = {
+        CampName: {
+          $regex: search,
+          $options: "i",
+        },
+      };
+
+      const result = await campCollection.find(query).toArray();
+
+      res.send(result);
+    });
+
     app.get("/details/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
