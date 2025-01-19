@@ -311,6 +311,81 @@ async function run() {
       res.send(result);
     });
 
+    // dashboard analytics relate work
+    app.get("/participant-analytics", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+
+      const join = await joinCampCollection
+        .aggregate([
+          {
+            $match: { participantEmail: email },
+          },
+        ])
+        .toArray();
+
+      const joinPaymentStatus = await joinCampCollection
+        .aggregate([
+          {
+            $match: { participantEmail: email },
+          },
+          {
+            $group: {
+              _id: "$PaymentStatus",
+              totalQuantity: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+      const joinConfirmationPending = await joinCampCollection
+        .aggregate([
+          {
+            $match: { participantEmail: email },
+          },
+          {
+            $group: {
+              _id: "$Confirmation",
+              totalQuantity: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+
+      const payment = await paymentCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalAmount: {
+                $sum: "$campFees",
+              },
+            },
+          },
+        ])
+        .toArray();
+
+      const totalFess = payment.length > 0 ? payment[0].totalAmount : 0;
+      const joinPaymentStatusPaid =
+        joinPaymentStatus.length > 0 ? joinPaymentStatus[0].totalQuantity : 0;
+      const joinConfirmationPendingCount =
+        joinConfirmationPending.length > 0
+          ? joinConfirmationPending[0].totalQuantity
+          : 0;
+      const joinConfirmationConfirmedCount =
+        joinConfirmationPending.length > 0
+          ? joinConfirmationPending[1].totalQuantity
+          : 0;
+      const totalJoin = join.length;
+
+      res.send({
+        totalFess,
+        totalJoin,
+        joinPaymentStatusPaid,
+        joinConfirmationPendingCount,
+        joinConfirmationConfirmedCount,
+      });
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
