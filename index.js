@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+var jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const stripe = require("stripe")(process.env.STRIPE_PAYMENT_KEY);
@@ -34,8 +35,49 @@ async function run() {
     const profileCollection = client.db("medicalCamp").collection("profiles");
     const paymentCollection = client.db("medicalCamp").collection("payments");
 
+    // jwt relate working
+
+    app.post("/jwt-login", async (req, res) => {
+      const tokenMail = req.body;
+
+      const token = jwt.sign(tokenMail, process.env.JWT_SECRET_KEY, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
+
+    // middleware
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: " unauthorized access" });
+      }
+
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.JWT_SECRET_KEY, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "unauthorized access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+
+    const organizerVerify = async (req, res, next) => {
+      const tokenEmail = req.decoded.email;
+      const query = { email: tokenEmail };
+      const participant = await userCollection.findOne(query);
+
+      const organizer = participant?.role === "organizer";
+      if (!organizer) {
+        return res.status(403).send({ message: "forbidden access!" });
+      }
+
+      next();
+    };
+
     // user relate working
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyToken, organizerVerify, async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
       const exitingUser = await userCollection.findOne(query);
@@ -46,52 +88,67 @@ async function run() {
       res.send(user);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, organizerVerify, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     // organize relate work
-    app.patch("/users/organizer/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+    app.patch(
+      "/users/organizer/:id",
+      verifyToken,
+      organizerVerify,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
 
-      const updateRole = {
-        $set: {
-          role: "organizer",
-        },
-      };
-      const result = await userCollection.updateOne(query, updateRole);
-      res.send(result);
-    });
-
-    app.get("/users/organizer/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
-
-      const participant = await userCollection.findOne(query);
-      let organizer = false;
-      if (participant) {
-        organizer = participant?.role === "organizer";
+        const updateRole = {
+          $set: {
+            role: "organizer",
+          },
+        };
+        const result = await userCollection.updateOne(query, updateRole);
+        res.send(result);
       }
-      res.send({ organizer });
-    });
+    );
 
-    app.delete("/users/participant/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await userCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.get(
+      "/users/organizer/:email",
+      verifyToken,
+      organizerVerify,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email: email };
+
+        const participant = await userCollection.findOne(query);
+        let organizer = false;
+        if (participant) {
+          organizer = participant?.role === "organizer";
+        }
+        res.send({ organizer });
+      }
+    );
+
+    app.delete(
+      "/users/participant/:id",
+      verifyToken,
+      organizerVerify,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await userCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     // camps relate
-    app.post("/camps", async (req, res) => {
+    app.post("/camps", verifyToken, organizerVerify, async (req, res) => {
       const camp = req.body;
       const result = await campCollection.insertOne(camp);
       res.send(result);
     });
 
-    app.get("/camps", async (req, res) => {
+    app.get("/camps", verifyToken, organizerVerify, async (req, res) => {
       const result = await campCollection.find().toArray();
       res.send(result);
     });
@@ -104,33 +161,42 @@ async function run() {
         .toArray();
       res.send(result);
     });
-    app.delete("/camps/:id", async (req, res) => {
+    app.delete("/camps/:id", verifyToken, organizerVerify, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await campCollection.deleteOne(query);
       res.send(result);
     });
 
-    app.put("/update-camp/:id", async (req, res) => {
-      const updateId = req.params.id;
-      const updateData = req.body;
-      const query = { _id: new ObjectId(updateId) };
-      const option = { upsert: true };
-      const updateCamp = {
-        $set: {
-          CampName: updateData.CampName,
-          Image: updateData.Image,
-          CampFees: updateData.CampFees,
-          DateAndTime: updateData.DateAndTime,
-          Location: updateData.Location,
-          HealthcareProfessional: updateData.HealthcareProfessional,
-          ParticipantCount: updateData.ParticipantCount,
-          Description: updateData.Description,
-        },
-      };
-      const result = await campCollection.updateOne(query, updateCamp, option);
-      res.send(result);
-    });
+    app.put(
+      "/update-camp/:id",
+      verifyToken,
+      organizerVerify,
+      async (req, res) => {
+        const updateId = req.params.id;
+        const updateData = req.body;
+        const query = { _id: new ObjectId(updateId) };
+        const option = { upsert: true };
+        const updateCamp = {
+          $set: {
+            CampName: updateData.CampName,
+            Image: updateData.Image,
+            CampFees: updateData.CampFees,
+            DateAndTime: updateData.DateAndTime,
+            Location: updateData.Location,
+            HealthcareProfessional: updateData.HealthcareProfessional,
+            ParticipantCount: updateData.ParticipantCount,
+            Description: updateData.Description,
+          },
+        };
+        const result = await campCollection.updateOne(
+          query,
+          updateCamp,
+          option
+        );
+        res.send(result);
+      }
+    );
 
     app.get("/search", async (req, res) => {
       const search = req.query.search;
@@ -163,12 +229,12 @@ async function run() {
     });
 
     // feedback relate work
-    app.get("/feedbacks", async (req, res) => {
+    app.get("/feedbacks", verifyToken, async (req, res) => {
       const result = await feedbackCollection.find().toArray();
       res.send(result);
     });
 
-    app.post("/feedbacks", async (req, res) => {
+    app.post("/feedbacks", verifyToken, async (req, res) => {
       const feedbackData = req.body;
       const result = await feedbackCollection.insertOne(feedbackData);
       res.send(result);
@@ -387,26 +453,31 @@ async function run() {
       });
     });
 
-    app.get("organizer-analytics", async (req, res) => {
-      const users = await userCollection.estimatedDocumentCount();
-      const joins = await joinCampCollection.estimatedDocumentCount();
-      const feedbacks = await feedbackCollection.estimatedDocumentCount();
+    app.get(
+      "/organizer-analytics",
+      verifyToken,
+      organizerVerify,
+      async (req, res) => {
+        const users = await userCollection.estimatedDocumentCount();
+        const joins = await joinCampCollection.estimatedDocumentCount();
+        const feedbacks = await feedbackCollection.estimatedDocumentCount();
 
-      const payment = await paymentCollection
-        .aggregate([
-          {
-            $group: {
-              _id: null,
-              totalAmount: {
-                $sum: "$campFees",
+        const payment = await paymentCollection
+          .aggregate([
+            {
+              $group: {
+                _id: null,
+                totalAmount: {
+                  $sum: "$campFees",
+                },
               },
             },
-          },
-        ])
-        .toArray();
-      const totalFess = payment.length > 0 ? payment[0].totalAmount : 0;
-      res.send({ users, joins, feedbacks, totalFess });
-    });
+          ])
+          .toArray();
+        const totalFess = payment.length > 0 ? payment[0].totalAmount : 0;
+        res.send({ users, joins, feedbacks, totalFess });
+      }
+    );
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
