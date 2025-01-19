@@ -307,7 +307,9 @@ async function run() {
     });
 
     app.get("/payments", async (req, res) => {
-      const result = await paymentCollection.find().toArray();
+      const email = req.query.email;
+      const filter = { email: email };
+      const result = await paymentCollection.find(filter).toArray();
       res.send(result);
     });
 
@@ -354,6 +356,9 @@ async function run() {
       const payment = await paymentCollection
         .aggregate([
           {
+            $match: { email: email },
+          },
+          {
             $group: {
               _id: null,
               totalAmount: {
@@ -371,10 +376,7 @@ async function run() {
         joinConfirmationPending.length > 0
           ? joinConfirmationPending[0].totalQuantity
           : 0;
-      const joinConfirmationConfirmedCount =
-        joinConfirmationPending.length > 0
-          ? joinConfirmationPending[1].totalQuantity
-          : 0;
+
       const totalJoin = join.length;
 
       res.send({
@@ -382,8 +384,28 @@ async function run() {
         totalJoin,
         joinPaymentStatusPaid,
         joinConfirmationPendingCount,
-        joinConfirmationConfirmedCount,
       });
+    });
+
+    app.get("organizer-analytics", async (req, res) => {
+      const users = await userCollection.estimatedDocumentCount();
+      const joins = await joinCampCollection.estimatedDocumentCount();
+      const feedbacks = await feedbackCollection.estimatedDocumentCount();
+
+      const payment = await paymentCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalAmount: {
+                $sum: "$campFees",
+              },
+            },
+          },
+        ])
+        .toArray();
+      const totalFess = payment.length > 0 ? payment[0].totalAmount : 0;
+      res.send({ users, joins, feedbacks, totalFess });
     });
 
     // Send a ping to confirm a successful connection
