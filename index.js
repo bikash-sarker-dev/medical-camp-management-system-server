@@ -48,7 +48,6 @@ async function run() {
 
     // middleware
     const verifyToken = (req, res, next) => {
-      console.log(req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: " unauthorized access" });
       }
@@ -148,9 +147,20 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/camps", verifyToken, organizerVerify, async (req, res) => {
-      const result = await campCollection.find().toArray();
+    app.get("/camps", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+
+      const result = await campCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(result);
+    });
+    app.get("/campsCount", async (req, res) => {
+      const count = await campCollection.estimatedDocumentCount();
+      res.send({ count });
     });
     // camps relate
     app.get("/camps/popular", async (req, res) => {
@@ -229,12 +239,12 @@ async function run() {
     });
 
     // feedback relate work
-    app.get("/feedbacks", verifyToken, async (req, res) => {
+    app.get("/feedbacks", async (req, res) => {
       const result = await feedbackCollection.find().toArray();
       res.send(result);
     });
 
-    app.post("/feedbacks", verifyToken, async (req, res) => {
+    app.post("/feedbacks", async (req, res) => {
       const feedbackData = req.body;
       const result = await feedbackCollection.insertOne(feedbackData);
       res.send(result);
