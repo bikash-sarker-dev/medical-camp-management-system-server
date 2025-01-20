@@ -6,9 +6,16 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const stripe = require("stripe")(process.env.STRIPE_PAYMENT_KEY);
 
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://medicalcamps.netlify.app"],
+    credentials: true,
+    optionalSuccessStatus: 200,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.yvlp9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -25,7 +32,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     // collection create
     const campCollection = client.db("medicalCamp").collection("camps");
@@ -76,7 +83,7 @@ async function run() {
     };
 
     // user relate working
-    app.post("/users", verifyToken, organizerVerify, async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
       const exitingUser = await userCollection.findOne(query);
@@ -233,7 +240,6 @@ async function run() {
 
     app.get("/camp-search", async (req, res) => {
       const search = req.query.search;
-      console.log(search);
 
       let query = {
         CampName: {
@@ -241,7 +247,6 @@ async function run() {
           $options: "i",
         },
       };
-
       const result = await campCollection.find(query).toArray();
 
       res.send(result);
@@ -286,6 +291,20 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/join-search", async (req, res) => {
+      const search = req.query.search;
+
+      let query = {
+        campName: {
+          $regex: search,
+          $options: "i",
+        },
+      };
+      const result = await joinCampCollection.find(query).toArray();
+
+      res.send(result);
+    });
+
     app.get("/join-camps", async (req, res) => {
       const result = await joinCampCollection.find().toArray();
       res.send(result);
@@ -318,6 +337,7 @@ async function run() {
 
     app.get("/registered-join/:email", async (req, res) => {
       const email = req.params.email;
+      const searching = req.query.search;
       const query = { participantEmail: email };
 
       const result = await joinCampCollection.find(query).toArray();
@@ -327,6 +347,15 @@ async function run() {
     // profile relate working
     app.post("/profile", async (req, res) => {
       const profile = req.body;
+      const filter = { email: profile.email };
+      const haveProfile = await profileCollection.findOne(filter);
+      if (haveProfile) {
+        return res.send({
+          message: "already have a profile ",
+          insertedId: null,
+        });
+      }
+
       const result = await profileCollection.insertOne(profile);
       res.send(result);
     });
@@ -408,7 +437,6 @@ async function run() {
     // dashboard analytics relate work
     app.get("/participant-analytics", async (req, res) => {
       const email = req.query.email;
-      console.log(email);
 
       const join = await joinCampCollection
         .aggregate([
@@ -506,10 +534,10 @@ async function run() {
     );
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
