@@ -118,22 +118,17 @@ async function run() {
       }
     );
 
-    app.get(
-      "/users/organizer/:email",
-      verifyToken,
-      organizerVerify,
-      async (req, res) => {
-        const email = req.params.email;
-        const query = { email: email };
+    app.get("/users/organizer/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
 
-        const participant = await userCollection.findOne(query);
-        let organizer = false;
-        if (participant) {
-          organizer = participant?.role === "organizer";
-        }
-        res.send({ organizer });
+      const participant = await userCollection.findOne(query);
+      let organizer = false;
+      if (participant) {
+        organizer = participant?.role === "organizer";
       }
-    );
+      res.send({ organizer });
+    });
 
     app.delete(
       "/users/participant/:id",
