@@ -41,6 +41,7 @@ async function run() {
     const userCollection = client.db("medicalCamp").collection("users");
     const profileCollection = client.db("medicalCamp").collection("profiles");
     const paymentCollection = client.db("medicalCamp").collection("payments");
+    const galleryCollection = client.db("medicalCamp").collection("gallery");
 
     // jwt relate working
 
@@ -527,6 +528,12 @@ async function run() {
         res.send({ users, joins, feedbacks, totalFess });
       }
     );
+
+    // image gallery related
+    app.get("/home-gallery", async (req, res) => {
+      const result = await galleryCollection.find({}).limit(8).toArray();
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
